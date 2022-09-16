@@ -4,6 +4,7 @@
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.net.URI;
@@ -21,10 +22,10 @@ import com.fasterxml.jackson.databind.JsonNode;
         description = "ESTC stock value retriever")
 class stocker implements Callable<Integer> {
 
-    @Parameters(index = "0", description = "Access key retrived from marketstack.com")
-    private String acccesskey;
+    @Option(names = {"-A", "--accesskey"}, description = "Access key retrived from marketstack.com", required = false)
+    private String accesskey;
 
-    @Parameters(index = "1", description = "vesting date (yyyy-mm-dd)")
+    @Parameters(description = "vesting date (yyyy-mm-dd)")
     private String dateTo;
 
     public static void main(String... args) {
@@ -34,7 +35,15 @@ class stocker implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
-        URI uri = new URI("http://api.marketstack.com/v1/eod?access_key=" + acccesskey + "&symbols=ESTC&date_to=" + dateTo + "&limit=31");
+        if (accesskey == null) {
+            accesskey = System.getenv().get("MARKET_STOCK_API_KEY");
+            if (accesskey == null) {
+                System.out.println("No market access key found");
+                System.exit(1);
+            }
+        }
+
+        URI uri = new URI("http://api.marketstack.com/v1/eod?access_key=" + accesskey + "&symbols=ESTC&date_to=" + dateTo + "&limit=31");
         HttpRequest request = HttpRequest.newBuilder()
             .uri(uri)
             .GET()
@@ -48,6 +57,11 @@ class stocker implements Callable<Integer> {
         final ObjectMapper objectMapper = new ObjectMapper();
         JsonNode jsonNode = objectMapper.readTree(response.body());
         ArrayNode data = (ArrayNode)jsonNode.get("data");
+
+        if (data == null) {
+            System.out.println("No data available");
+            System.exit(2);
+        }
         
         System.out.println("date, close, open, high, low");
         for (JsonNode tickAtDay : data) {

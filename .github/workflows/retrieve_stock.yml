@@ -1,0 +1,32 @@
+# Executes JBang script to retrieve stocks, starting 31 days from the date defined.
+
+name: Retrive stock
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: 'Vesting date (yyyy-MM-dd)'
+        required: true
+
+jobs:
+  jbang:
+    runs-on: ubuntu-latest
+    name: A job to run jbang
+    steps:
+    - name: checkout
+      uses: actions/checkout@v1
+    - uses: actions/cache@v1
+      with:
+        path: /root/.jbang
+        key: $-jbang-$
+        restore-keys: |
+            $-jbang-
+    - name: jbang
+      uses: jbangdev/jbang-action@v0.98.0
+      with:
+        script: stocker.java
+        scriptargs: "${{ github.event.inputs.start_date }}"
+      env:
+        JBANG_REPO: /root/.jbang/repository
+        MARKET_STOCK_API_KEY: ${{ secrets.MARKET_STOCK_API_KEY }}
